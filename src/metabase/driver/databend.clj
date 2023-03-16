@@ -184,7 +184,7 @@
                 (merge table-metadata {:fields (set filtered-fields)})))
 
 ; Return a native query that will fetch the current time
-(defmethod driver.common/current-db-time-native-query :firebolt [_]
+(defmethod driver.common/current-db-time-native-query :databend [_]
            "SELECT CAST(CAST(NOW() AS TIMESTAMP) AS VARCHAR(24))")
 
 (defn- to-start-of-year
@@ -279,7 +279,7 @@
            (format "'%s'" (t/format "HH:mm:ss.SSSZZZZZ" t)))
 
 ; Converting OffsetDateTime datatype to SQL-style literal string
-(defmethod unprepare/unprepare-value [:firebolt OffsetDateTime]
+(defmethod unprepare/unprepare-value [:databend OffsetDateTime]
            [_ t]
            (format "'%s'" (u.date/format-sql (t/local-date-time t))))
 
