@@ -1,5 +1,5 @@
 info:
-  name: Metabase ClickHouse Driver
+  name: Metabase Databend Driver
   version: 0.0.1
   description: Allows Metabase to connect to Databend databases.
 contact-info:
