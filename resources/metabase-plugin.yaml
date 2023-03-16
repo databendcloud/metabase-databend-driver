@@ -24,6 +24,10 @@ driver:
       display-name: ssl config
       type: boolean
       default: false
+    - name: additional-options
+      display-name: Additional JDBC options
+      placeholder: connection_timeout=10&wait_time_secs=10
+    - default-advanced-options
 
 init:
   - step: load-namespace
