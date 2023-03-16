@@ -1,0 +1,32 @@
+info:
+  name: Metabase ClickHouse Driver
+  version: 0.0.1
+  description: Allows Metabase to connect to Databend databases.
+contact-info:
+  name: Databend
+  address: https://github.com/databendcloud/metabase-databend-driver
+driver:
+  name: databend
+  display-name: Databend
+  lazy-load: true
+  parent: sql-jdbc
+  connection-properties:
+    - host
+    - merge:
+        - port
+        - default: 8000
+    - user
+    - password
+    - name: dbname
+      display-name: Database Name
+      placeholder: default
+    - name: ssl
+      display-name: ssl config
+      type: boolean
+      default: false
+
+init:
+  - step: load-namespace
+    namespace: metabase.driver.databend
+  - step: register-jdbc-driver
+    class: com.databend.jdbc.DatabendDriver

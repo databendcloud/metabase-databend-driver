@@ -1,0 +1,20 @@
+{:paths
+ ["src" "resources"]
+
+ :deps
+ {com.databend/databend-jdbc {:mvn/version "0.0.5-rc1"}
+  com.widdindustries/cljc.java-time {:mvn/version "0.1.21"}}
+ :mvn/repos
+ {"releases" {:url "https://repo.repsy.io/mvn/databend/maven"}}
+
+ ;; build the driver with clojure -X:build
+ :aliases
+ {:build
+  {
+   :extra-deps {metabase/metabase-core {:local/root "../../../../metabase"}
+                metabase/build-drivers {:local/root "../../../../metabase/bin/build-drivers"}}
+   :exec-fn    build-drivers.build-driver/build-driver!
+   :exec-args  {:driver      :databend
+                :project-dir "."
+                :target-dir  "./target"}}}
+ }

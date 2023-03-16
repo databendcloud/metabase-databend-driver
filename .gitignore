@@ -1,0 +1,15 @@
+\#*\#
+.\#*
+.idea
+/target
+*.jar
+*.class
+/.lein-env
+/.lein-failures
+/.lein-plugins
+/.lein-repl-history
+/.clj-kondo
+.eastwood
+.calva
+.cpcache
+.joyride
