@@ -1,4 +1,4 @@
-(defproject metabase/databend-driver "0.0.1"
+(defproject metabase/databend-driver "0.0.2"
   :min-lein-version "2.5.0"
 
   :dependencies
