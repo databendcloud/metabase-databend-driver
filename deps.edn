@@ -2,7 +2,7 @@
  ["src" "resources"]
 
  :deps
- {com.databend/databend-jdbc {:mvn/version "0.0.5-rc3"}
+ {com.databend/databend-jdbc {:mvn/version "0.0.5-rc4"}
   com.widdindustries/cljc.java-time {:mvn/version "0.1.21"}}
  :mvn/repos
  {"releases" {:url "https://repo.repsy.io/mvn/databend/maven"}}
