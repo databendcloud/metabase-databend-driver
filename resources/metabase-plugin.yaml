@@ -1,6 +1,6 @@
 info:
   name: Metabase Databend Driver
-  version: 0.0.2
+  version: 0.0.6
   description: Allows Metabase to connect to Databend databases.
 contact-info:
   name: Databend
@@ -11,7 +11,8 @@ driver:
   lazy-load: true
   parent: sql-jdbc
   connection-properties:
-    - host
+    - name: host
+      default: "localhost"
     - merge:
         - port
         - default: 8000
@@ -20,15 +21,17 @@ driver:
     - name: dbname
       display-name: Database Name
       placeholder: default
-    - name: ssl
-      display-name: ssl config
+    - name: scan-all-databases
+      display-name: Scan all databases
       type: boolean
       default: false
-    - name: additional-options
-      display-name: Additional JDBC options
-      placeholder: connection_timeout=10&wait_time_secs=10
+    - ssl
+    - advanced-options-start
+    - merge:
+        - additional-options
+        - placeholder: "connection_timeout=60&wait_time_secs=60"
     - default-advanced-options
-
+  connection-properties-include-tunnel-config: false
 init:
   - step: load-namespace
     namespace: metabase.driver.databend
