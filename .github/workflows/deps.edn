@@ -1,0 +1,4 @@
+{:aliases
+ {:user/databend
+  {:extra-paths ["PWD/modules/drivers/databend/test"]
+   :extra-deps  {metabase/databend {:local/root "PWD/modules/drivers/databend"}}}}}
