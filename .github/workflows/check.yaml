@@ -73,6 +73,7 @@ jobs:
 
       - name: Prepare stuff for pulses
         run: yarn build-static-viz
+        # test ci
 
       # Use custom deps.edn containing "user/databend" alias to include driver sources
       - name: Run tests
