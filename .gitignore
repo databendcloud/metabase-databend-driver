@@ -1,8 +1,9 @@
 \#*\#
-.\#*
-.idea
 plugins
-metabase.db.*
+repo
+metabase.db*
+.idea
+.\#*
 /target
 *.jar
 *.class

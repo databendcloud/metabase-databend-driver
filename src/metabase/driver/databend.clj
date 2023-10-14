@@ -419,4 +419,4 @@
 (defmethod driver/db-start-of-week :databend [_] :monday)
 
 (defmethod ddl.i/format-name :databend [_ table-or-field-name]
-           (u/->snake_case_en table-or-field-name))
+  (str/replace table-or-field-name #"-" "_"))
