@@ -39,7 +39,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: metabase/metabase
-          ref: v0.46.0-RC2
+          ref: v0.47.4
 
       - name: Checkout Driver Repo
         uses: actions/checkout@v2
@@ -84,7 +84,7 @@ jobs:
       - name: Build databend driver
         run: |
           echo "{:deps {metabase/databend {:local/root \"databend\" }}}" > modules/drivers/deps.edn
-          bin/build-driver.sh databend 
+          bin/build-driver.sh databend
           ls -lah resources/modules
 
       - name: Archive driver JAR
