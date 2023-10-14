@@ -10,8 +10,6 @@
       [metabase [config :as config] [driver :as driver] [util :as u]]
       [metabase.driver.ddl.interface :as ddl.i]
       [metabase.driver.sql.util :as sql.u]
-      [metabase.driver
-       [common :as driver.common]]
       [metabase.driver.sql-jdbc [common :as sql-jdbc.common]
        [connection :as sql-jdbc.conn] [execute :as sql-jdbc.execute]
        [sync :as sql-jdbc.sync]]
@@ -183,10 +181,6 @@
                                                               (get field :database-type)))]
                                       updated-field)]
                 (merge table-metadata {:fields (set filtered-fields)})))
-
-; Return a native query that will fetch the current time
-(defmethod driver.common/current-db-time-native-query :databend [_]
-           "SELECT CAST(CAST(NOW() AS TIMESTAMP) AS VARCHAR(24))")
 
 (defn- to-start-of-year
        [expr]
@@ -425,4 +419,4 @@
 (defmethod driver/db-start-of-week :databend [_] :monday)
 
 (defmethod ddl.i/format-name :databend [_ table-or-field-name]
-           (u/->snake_case_en table-or-field-name))
+  (str/replace table-or-field-name #"-" "_"))
