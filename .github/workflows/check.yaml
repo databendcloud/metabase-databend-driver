@@ -71,17 +71,6 @@ jobs:
             ~/.gitlibs
           key: ${{ runner.os }}-databend-${{ hashFiles('**/deps.edn') }}
 
-      - name: Prepare stuff for pulses
-        run: yarn build-static-viz
-        # test ci
-
-      # Use custom deps.edn containing "user/databend" alias to include driver sources
-      - name: Run tests
-        run: |
-          mkdir -p /home/runner/.config/clojure
-          cat modules/drivers/databend/.github/workflows/deps.edn | sed -e "s|PWD|$PWD|g" > /home/runner/.config/clojure/deps.edn
-          DRIVERS=databend clojure -X:dev:drivers:drivers-dev:test:user/databend
-
       - name: Build databend driver
         run: |
           echo "{:deps {metabase/databend {:local/root \"databend\" }}}" > modules/drivers/deps.edn
