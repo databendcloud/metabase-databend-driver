@@ -262,7 +262,6 @@
 (defmethod sql.qp/date [:databend :month] [_ _ expr] (to-start-of-month expr))
 (defmethod sql.qp/date [:databend :year] [_ _ expr] (to-start-of-year expr))
 
-(defmethod sql.qp/date [:databend :day] [_ _ expr] (to-day expr))
 (defmethod sql.qp/date [:databend :week]
            [driver _ expr]
            (sql.qp/adjust-start-of-week driver to-start-of-week expr))
