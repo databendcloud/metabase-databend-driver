@@ -4,7 +4,7 @@
     (:require [clojure.java.jdbc :as jdbc]
       [clojure.string :as str]
       [clojure.tools.logging :as log]
-      [honeysql [core :as hsql] [format :as hformat]]
+      [honey.sql :as sql]
       [java-time :as t]
       [medley.core :as m]
       [metabase [config :as config] [driver :as driver] [util :as u]]
@@ -18,10 +18,8 @@
       [metabase.driver.sql-jdbc.sync.common :as common]
       [metabase.driver.sql-jdbc.execute.legacy-impl :as legacy]
       [metabase.driver.sql-jdbc.sync.interface :as i]
-      [metabase.mbql.schema :as mbql.s]
-      [metabase.mbql.util :as mbql.u]
+      [metabase.util.honey-sql-2 :as h2x]
       [metabase.util.date-2 :as u.date]
-      [metabase.util.honeysql-extensions :as hx]
       [metabase.util.ssh :as ssh]
       [schema.core :as s])
 
@@ -78,10 +76,10 @@
 
 (def ^:private default-connection-details
   {:classname "com.databend.jdbc.DatabendDriver", :subprotocol "databend", :user "root", :password "root", :dbname "default",:host "localhost", :port "8000", :ssl false})
-(def ^:private product-name "metabase/1.4.0")
-
-(defmethod sql-jdbc.conn/connection-details->spec :databend
-           [_ details]
+(def ^:private product-name "metabase/1.4.1")
+(defmethod driver/prettify-native-form :databend [_ native-form]
+           (sql.u/format-sql-and-fix-params :mysql native-form))
+(defn- connection-details->spec* [details]
            ;; ensure defaults merge on top of nils
            (let [details (reduce-kv (fn [m k v] (assoc m k (or v (k default-connection-details))))
                                     default-connection-details
@@ -99,11 +97,32 @@
                   (sql-jdbc.common/handle-additional-options details :separator-style :url))
                 ))
 
+(defmethod sql-jdbc.conn/connection-details->spec :databend
+           [_ details]
+           (connection-details->spec* details))
 
 ; Testing the databend database connection
-(defmethod driver/can-connect? :databend [driver details]
-           (let [connection (sql-jdbc.conn/connection-details->spec driver (ssh/include-ssh-tunnel! details))]
-                (= 1 (first (vals (first (jdbc/query connection ["SELECT 1"])))))))
+(defmethod driver/can-connect? :databend
+           [driver details]
+           (if config/is-test?
+             (try
+               ;; Default SELECT 1 is not enough for Metabase test suite,
+               ;; as it works slightly differently than expected there
+               (let [spec  (sql-jdbc.conn/connection-details->spec driver details)
+                     db    (or (:dbname details) (:db details) "default")]
+                    (sql-jdbc.execute/do-with-connection-with-options
+                      driver spec nil
+                      (fn [^java.sql.Connection conn]
+                          (let [stmt (.prepareStatement conn "SELECT count(*) > 0 FROM system.databases WHERE name = ?")
+                                _    (.setString stmt 1 db)
+                                rset (.executeQuery stmt)]
+                               (when (.next rset)
+                                     (.getBoolean rset 1))))))
+               (catch Throwable e
+                 (log/error e "An exception during Databend connectivity check")
+                 false))
+             ;; During normal usage, fall back to the default implementation
+             (sql-jdbc.conn/can-connect? driver details)))
 
 
 (def ^:private allowed-table-types
@@ -184,56 +203,53 @@
 
 (defn- to-start-of-year
        [expr]
-       (hsql/call :to_start_of_year (hsql/call :TO_DATETIME expr)))
+       [:'to_start_of_year expr])
 
 (defn- to-day-of-year
        [expr]
-       (hsql/call :to_day_of_year (hsql/call :TO_DATETIME expr)))
+       [:'to_day_of_year expr])
 
 
 (defn- to-start-of-week
        [expr]
        ;; The first day of a week can be Sunday or Monday, which is specified by the argument mode.
        ;; Here we use Sunday as default
-       (hsql/call :to_start_of_week expr))
+       [:'to_start_of_week expr])
 
 (defn- to-start-of-minute
        [expr]
-       (hsql/call :to_start_of_minute (hsql/call :TO_DATETIME expr)))
+       [:'to_start_of_minute expr])
 
 (defn- to-start-of-hour
        [expr]
-       (hsql/call :to_start_of_hour (hsql/call :TO_DATETIME expr)))
+       [:'to_start_of_hour expr])
 
-(defn- to-hour [expr] (hsql/call :to_hour (hsql/call :TO_DATETIME expr)))
+(defn- to-hour [expr] [:'to_hour expr])
 
-(defn- to-minute [expr] (hsql/call :to_minute (hsql/call :TO_DATETIME expr)))
+(defn- to-minute [expr] [:'to_minute expr])
 
-(defn- to-day [expr] (hsql/call :to_date expr))
+(defn- to-day [expr] [:'to_day expr])
 
 (defmethod sql.qp/date [:databend :day-of-week]
            [_ _ expr]
-           (sql.qp/adjust-day-of-week :databend (hsql/call :to_day_of_week expr)))
+           (sql.qp/adjust-day-of-week :databend [:'to_day_of_week expr]))
 
 (defn- to-day-of-month
        [expr]
-       (hsql/call :to_day_of_month (hsql/call :TO_DATETIME expr)))
+       [:'to_day_of_month expr])
 
 (defn- to-start-of-month
        [expr]
-       (hsql/call :to_start_of_month (hsql/call :TO_DATETIME expr)))
+       [:'to_start_of_month expr])
 
 (defn- to-start-of-quarter
        [expr]
-       (hsql/call :to_start_of_quarter (hsql/call :TO_DATETIME expr)))
+       [:'to_start_of_quarter expr])
 
 (defmethod sql.qp/date [:databend :default] [_ _ expr] expr)
 (defmethod sql.qp/date [:databend :minute]
            [_ _ expr]
            (to-start-of-minute expr))
-
-; Return an appropriate HoneySQL form for converting a Unix timestamp integer field or value to a proper SQL Timestamp.
-;(defmethod sql.qp/unix-timestamp->honeysql [:databend :seconds] [_ _ expr] (hsql/call :to_timestamp expr))
 
 (defmethod sql.qp/date [:databend :minute-of-hour]
            [_ _ expr]
@@ -257,9 +273,9 @@
            [_ _ expr]
            (to-start-of-quarter expr))
 
-;(defmethod sql.qp/unix-timestamp->honeysql [:databend :seconds]
-;           [_ _ expr]
-;           (hsql/call :TO_DATETIME expr))
+(defmethod sql.qp/unix-timestamp->honeysql [:databend :seconds]
+           [_ _ expr]
+           (h2x/->datetime expr))
 
 (defmethod unprepare/unprepare-value [:databend LocalDate]
            [_ t]
@@ -288,84 +304,34 @@
 
 (defmethod sql.qp/->honeysql [:databend :log]
            [driver [_ field]]
-           (hsql/call :log10 (sql.qp/->honeysql driver field)))
-
-(defmethod hformat/fn-handler "quantile"
-           [_ field p]
-           (str "quantile(" (hformat/to-sql p) ")(" (hformat/to-sql field) ")"))
+           [:'log10 (sql.qp/->honeysql driver field)])
 
 ; call REGEXP_SUBSTR function when regex-match-first is called
 (defmethod sql.qp/->honeysql [:databend :regex-match-first]
            [driver [_ arg pattern]]
-           (let [arg-sql (hformat/to-sql (sql.qp/->honeysql driver arg))
-                 pattern-sql (sql.u/escape-sql (sql.qp/->honeysql driver pattern) :ansi)
-                 sql-string (str "REGEXP_SUBSTR(" arg-sql ", '" pattern-sql "')")]
-                (hsql/raw sql-string)))
+           [:'extract (sql.qp/->honeysql driver arg) pattern])
 
 
 ;; metabase.query-processor-test.count-where-test
 ;; metabase.query-processor-test.share-test
 (defmethod sql.qp/->honeysql [:databend :count-where]
            [driver [_ pred]]
-           (hsql/call :case
-                      (hsql/call :>
-                                 (hsql/call :count) 0)
-                      (hsql/call :sum
-                                 (hsql/call :case (sql.qp/->honeysql driver pred) 1.0 :else 0.0))
-                      :else nil))
+           [:case
+            [:> [:'count] 0]
+            [:sum [:case (sql.qp/->honeysql driver pred) 1 :else 0]]
+            :else nil])
 
 (defmethod sql.qp/quote-style :databend [_] :mysql)
 
 (defmethod sql.qp/add-interval-honeysql-form :databend
            [_ dt amount unit]
-           (hx/+ (hx/->timestamp dt)
-                 (hsql/raw (format "INTERVAL %d %s" (int amount) (name unit)))))
-
-;; The following lines make sure we call lowerUTF8 instead of lower
-(defn- databend-like-clause
-       [driver field value options]
-       (if (get options :case-sensitive true)
-         [:like field (sql.qp/->honeysql driver value)]
-         [:like (hsql/call :lowerUTF8 field)
-          (sql.qp/->honeysql driver (update value 1 str/lower-case))]))
-
-(s/defn ^:private update-string-value :- mbql.s/value
-        [value :- (s/constrained mbql.s/value #(string? (second %)) "string value") f]
-        (update value 1 f))
-
-(defmethod sql.qp/->honeysql [:databendd :starts-with]
-           [driver [_ field value options]]
-           (databend-like-clause driver
-                                 (sql.qp/->honeysql driver field)
-                                 (update-string-value value #(str % \%))
-                                 options))
-
-(defmethod sql.qp/->honeysql [:databend :contains]
-           [driver [_ field value options]]
-           (databend-like-clause driver
-                                 (sql.qp/->honeysql driver field)
-                                 (update-string-value value #(str \% % \%))
-                                 options))
-
-(defmethod sql.qp/->honeysql [:databend :ends-with]
-           [driver [_ field value options]]
-           (databend-like-clause driver
-                                 (sql.qp/->honeysql driver field)
-                                 (update-string-value value #(str \% %))
-                                 options))
+           (h2x/+ dt [:raw (format "INTERVAL %d %s" (int amount) (name unit))]))
 
 
 (defmethod sql.qp/cast-temporal-byte [:databend :Coercion/ISO8601->Time]
            [_driver _special_type expr]
-           (hx/->timestamp expr))
+           (h2x/->timestamp expr))
 
-;(defmethod sql-jdbc.execute/read-column-thunk [:databend Types/TIMESTAMP]
-;           [_ ^ResultSet rs ^ResultSetMetaData _ ^Integer i]
-;           (fn []
-;               (let [r (.getObject rs i LocalDateTime)]
-;                    (cond (nil? r) nil
-;                          (= (.toLocalDate r) (t/local-date 1970 1 1)) (.toLocalTime r)
-;                          :else r))))
 
 (defmethod sql-jdbc.execute/read-column-thunk [:databend Types/TIMESTAMP_WITH_TIMEZONE]
            [_ ^ResultSet rs ^ResultSetMetaData _ ^Integer i]
@@ -405,10 +371,17 @@
 
 (defmethod driver/display-name :databend [_] "Databend")
 
-(defmethod driver/supports? [:databend :standard-deviation-aggregations] [_ _] true)
-(defmethod driver/supports? [:databend :set-timezone] [_ _] true)
-(defmethod driver/supports? [:databend :foreign-keys] [_ _] false)
-(defmethod driver/supports? [:databend :test/jvm-timezone-setting] [_ _] false)
+(doseq [[feature supported?] {:standard-deviation-aggregations true
+                              :foreign-keys                    false
+                              :set-timezone                    false
+                              :convert-timezone                false
+                              :test/jvm-timezone-setting       false
+                              :connection-impersonation        false
+                              :schemas                         true
+                              :datetime-diff                   true
+                              :upload-with-auto-pk             false}]
+
+       (defmethod driver/database-supports? [:databend feature] [_driver _feature _db] supported?))
 
 (defmethod sql-jdbc.sync/db-default-timezone :databend
            [_ spec]
