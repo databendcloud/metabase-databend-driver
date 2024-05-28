@@ -228,7 +228,6 @@
 
 (defn- to-minute [expr] [:'to_minute expr])
 
-(defn- to-day [expr] [:'to_day expr])
 
 (defmethod sql.qp/date [:databend :day-of-week]
            [_ _ expr]
