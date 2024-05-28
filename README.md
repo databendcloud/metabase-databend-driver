@@ -60,3 +60,12 @@ You should see a message on startup similar to:
 2019-05-07 23:27:32 INFO plugins.lazy-loaded-driver :: Registering lazy loading driver :databend...
 2019-05-07 23:27:32 INFO metabase.driver :: Registered driver :databend (parents: #{:sql-jdbc}) 🚚
 ```
+
+## Choosing the Right Version
+
+| Metabase Release | Driver Version |
+|------------------|----------------|
+| 0.37.x           | 0.0.1          |
+| 0.38.1+          | 0.0.2          |
+| 0.47.7+          | 0.0.7          |
+| 0.49.x           | 0.0.8          |
