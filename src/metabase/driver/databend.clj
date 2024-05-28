@@ -77,8 +77,6 @@
 (def ^:private default-connection-details
   {:classname "com.databend.jdbc.DatabendDriver", :subprotocol "databend", :user "root", :password "root", :dbname "default",:host "localhost", :port "8000", :ssl false})
 (def ^:private product-name "metabase/1.4.1")
-(defmethod driver/prettify-native-form :databend [_ native-form]
-           (sql.u/format-sql-and-fix-params :mysql native-form))
 (defn- connection-details->spec* [details]
            ;; ensure defaults merge on top of nils
            (let [details (reduce-kv (fn [m k v] (assoc m k (or v (k default-connection-details))))
