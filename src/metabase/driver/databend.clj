@@ -327,10 +327,10 @@
            [driver [_ arg start length]]
            (let [str [:'toString (sql.qp/->honeysql driver arg)]]
                 (if length
-                  [:'substring str
+                  [:'substr str
                    (sql.qp/->honeysql driver start)
                    (sql.qp/->honeysql driver length)]
-                  [:'substring str
+                  [:'substr str
                    (sql.qp/->honeysql driver start)])))
 
 ;; metabase.query-processor-test.count-where-test
