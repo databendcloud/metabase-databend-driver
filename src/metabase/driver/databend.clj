@@ -9,6 +9,7 @@
       [medley.core :as m]
       [metabase [config :as config] [driver :as driver] [util :as u]]
       [metabase.driver.ddl.interface :as ddl.i]
+      [metabase.driver.sql :as driver.sql]
       [metabase.driver.sql.util :as sql.u]
       [metabase.driver.sql-jdbc [common :as sql-jdbc.common]
        [connection :as sql-jdbc.conn] [execute :as sql-jdbc.execute]
@@ -315,6 +316,13 @@
            [driver [_ field]]
            [:'median (sql.qp/->honeysql driver field)])
 
+(defn- args->float64
+       [args]
+       (map (fn [arg] [:'to_float64 (sql.qp/->honeysql :databend arg)]) args))
+
+(defmethod sql.qp/->float :databend
+           [_ value]
+           [:'to_float64 value])
 (defmethod sql.qp/->honeysql [:databend :substring]
            [driver [_ arg start length]]
            (let [str [:'toString (sql.qp/->honeysql driver arg)]]
@@ -333,6 +341,7 @@
             [:> [:'count] 0]
             [:sum [:case (sql.qp/->honeysql driver pred) 1 :else 0]]
             :else nil])
+
 
 (defmethod sql.qp/quote-style :databend [_] :mysql)
 
@@ -406,3 +415,7 @@
 
 (defmethod ddl.i/format-name :databend [_ table-or-field-name]
   (str/replace table-or-field-name #"-" "_"))
+
+(defmethod driver.sql/set-role-statement :databend
+           [_ role]
+           (format "SET ROLE %s;" role))
