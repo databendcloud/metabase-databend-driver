@@ -307,13 +307,23 @@
            [driver [_ arg pattern]]
            [:'extract (sql.qp/->honeysql driver arg) pattern])
 
-(defmethod sql.qp/->honeysql [:clickhouse :stddev]
+(defmethod sql.qp/->honeysql [:databend :stddev]
            [driver [_ field]]
            [:'stddevPop (sql.qp/->honeysql driver field)])
 
-(defmethod sql.qp/->honeysql [:clickhouse :median]
+(defmethod sql.qp/->honeysql [:databend :median]
            [driver [_ field]]
            [:'median (sql.qp/->honeysql driver field)])
+
+(defmethod sql.qp/->honeysql [:databend :substring]
+           [driver [_ arg start length]]
+           (let [str [:'toString (sql.qp/->honeysql driver arg)]]
+                (if length
+                  [:'substring str
+                   (sql.qp/->honeysql driver start)
+                   (sql.qp/->honeysql driver length)]
+                  [:'substring str
+                   (sql.qp/->honeysql driver start)])))
 
 ;; metabase.query-processor-test.count-where-test
 ;; metabase.query-processor-test.share-test
