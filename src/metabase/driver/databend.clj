@@ -307,6 +307,13 @@
            [driver [_ arg pattern]]
            [:'extract (sql.qp/->honeysql driver arg) pattern])
 
+(defmethod sql.qp/->honeysql [:clickhouse :stddev]
+           [driver [_ field]]
+           [:'stddevPop (sql.qp/->honeysql driver field)])
+
+(defmethod sql.qp/->honeysql [:clickhouse :median]
+           [driver [_ field]]
+           [:'median (sql.qp/->honeysql driver field)])
 
 ;; metabase.query-processor-test.count-where-test
 ;; metabase.query-processor-test.share-test
