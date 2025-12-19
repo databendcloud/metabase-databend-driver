@@ -78,7 +78,7 @@ jobs:
           ls -lah resources/modules
 
       - name: Archive driver JAR
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: databend.metabase-driver.jar
           path: resources/modules/databend.metabase-driver.jar
