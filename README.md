@@ -10,6 +10,7 @@
 ### Prerequisites
 
 - [Leiningen](https://leiningen.org/)
+- JDK 21 or newer (current builds target Metabase 0.56.x and above, which require Java 21+)
 
 ### Build from source
 
@@ -46,6 +47,11 @@
    ```shell
    LEIN_SNAPSHOTS_IN_RELEASE=true DEBUG=1 lein uberjar
    ```
+
+   Notes:
+
+   - Use JDK 21+ when compiling; newer Metabase builds (0.56.x and above) depend on Java 21 APIs and will fail on older JDKs.
+   - This driver version is intended for Metabase 0.56.x and later. For older Metabase releases, use the matching driver version from the table below.
 
 5. Let's assume we download `metabase.jar` from the [Metabase jar](https://www.metabase.com/docs/latest/operations-guide/running-the-metabase-jar-file.html) to `~/metabase/` and we built the project above. Copy the built jar to the Metabase plugins directly and run Metabase from there!
 
