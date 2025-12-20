@@ -7,7 +7,9 @@
       [honey.sql :as sql]
       [java-time :as t]
       [medley.core :as m]
-      [metabase [config :as config] [driver :as driver] [util :as u]]
+      [metabase.config.core :as config]
+      [metabase.driver :as driver]
+      [metabase.util :as u]
       [metabase.driver.ddl.interface :as ddl.i]
       [metabase.driver.sql :as driver.sql]
       [metabase.driver.sql.util :as sql.u]
@@ -21,7 +23,6 @@
       [metabase.driver.sql-jdbc.sync.interface :as i]
       [metabase.util.honey-sql-2 :as h2x]
       [metabase.util.date-2 :as u.date]
-      [metabase.util.ssh :as ssh]
       [schema.core :as s])
 
     (:import

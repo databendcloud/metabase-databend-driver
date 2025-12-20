@@ -2,7 +2,7 @@
   :min-lein-version "2.5.0"
 
   :dependencies
-  [[com.databend/databend-jdbc "0.0.7"]
+  [[com.databend/databend-jdbc "0.4.2"]
    [clojure.java-time "0.3.2"]
    ]
 

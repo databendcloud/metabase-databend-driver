@@ -39,18 +39,18 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: metabase/metabase
-          ref: v0.49.12
+          ref: v0.57.6
 
       - name: Checkout Driver Repo
         uses: actions/checkout@v2
         with:
           path: modules/drivers/databend
 
-      - name: Prepare JDK 17
+      - name: Prepare JDK 23
         uses: actions/setup-java@v2
         with:
           distribution: "temurin"
-          java-version: "17"
+          java-version: "23"
 
       - name: Install Clojure CLI
         run: |
@@ -58,13 +58,14 @@ jobs:
           sudo bash ./linux-install-1.11.1.1182.sh
 
       - name: Setup Node
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4
         with:
           node-version: "18"
           cache: "yarn"
+          cache-dependency-path: "yarn.lock"
 
       - name: Get M2 cache
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: |
             ~/.m2
@@ -78,7 +79,7 @@ jobs:
           ls -lah resources/modules
 
       - name: Archive driver JAR
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: databend.metabase-driver.jar
           path: resources/modules/databend.metabase-driver.jar
