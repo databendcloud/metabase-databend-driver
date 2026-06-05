@@ -18,7 +18,9 @@
                  ["project" "file:repo"]]
 
   :aliases
-  {"test"       ["with-profile" "test"]}
+  {"test"             ["with-profile" "+provided" "test"
+                       "metabase.driver.databend-describe-fields-test"]
+   "test-integration" ["with-profile" "+provided" "test"]}
 
 
 :profiles {:provided
