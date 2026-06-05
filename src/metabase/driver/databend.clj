@@ -182,10 +182,6 @@
                                                  (get-tables-in-db metadata (get-db-name db)))]
                                        {:tables tables})))
 
-(defmethod sql-jdbc.sync/database-type->base-type :databend [_ database-type]
-           (database-type->base-type database-type))
-
-
 (defn- describe-table-fields-via-sql
   ; DatabaseMetaData.getColumns() returns no rows against Databend, so query
   ; information_schema.columns directly for reliable field metadata.
@@ -199,10 +195,12 @@
                      ORDER BY ordinal_position"
                     db-name name])]
         (set (for [{:keys [column_name data_type ordinal_position is_nullable]} rows
-                   :let [db-type-upper (str/upper-case data_type)]
-                   :when (not (re-matches #"(?i)^AggregateFunction\(.+$" data_type))]
+                   :let [safe-type     (or data_type "")
+                         db-type-upper (str/upper-case safe-type)]
+                   :when (and (seq safe-type)
+                              (not (re-matches #"(?i)^AggregateFunction\(.+$" safe-type)))]
                {:name              column_name
-                :database-type     data_type
+                :database-type     safe-type
                 :base-type         (or (sql-jdbc.sync/database-type->base-type :databend db-type-upper)
                                        :type/*)
                 :database-position (if ordinal_position (dec (int ordinal_position)) 0)
