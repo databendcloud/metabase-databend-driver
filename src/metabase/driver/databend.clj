@@ -186,20 +186,33 @@
            (database-type->base-type database-type))
 
 
+(defn- describe-table-fields-via-sql
+  ; DatabaseMetaData.getColumns() returns no rows against Databend, so query
+  ; information_schema.columns directly for reliable field metadata.
+  [database {:keys [name schema]}]
+  (let [db-name (or (not-empty schema) (get-in database [:details :dbname] "default"))]
+    (jdbc/with-db-connection [conn (->spec database)]
+      (let [rows (jdbc/query conn
+                   ["SELECT column_name, data_type, ordinal_position, is_nullable
+                     FROM information_schema.columns
+                     WHERE table_schema = ? AND table_name = ?
+                     ORDER BY ordinal_position"
+                    db-name name])]
+        (set (for [{:keys [column_name data_type ordinal_position is_nullable]} rows
+                   :let [db-type-upper (str/upper-case data_type)]
+                   :when (not (re-matches #"(?i)^AggregateFunction\(.+$" data_type))]
+               {:name              column_name
+                :database-type     data_type
+                :base-type         (or (sql-jdbc.sync/database-type->base-type :databend db-type-upper)
+                                       :type/*)
+                :database-position (if ordinal_position (dec (int ordinal_position)) 0)
+                :nullable?         (= "YES" is_nullable)}))))))
+
 (defmethod driver/describe-table :databend
-           [_ database table]
-           (let [table-metadata (sql-jdbc.sync/describe-table :databend database table)
-                 filtered-fields (for [field (:fields table-metadata)
-                                       :let [updated-field
-                                             (update-in field [:database-type]
-                                                        ;; Enum8(UInt8) -> Enum8
-                                                        clojure.string/replace #"^(Enum.+)\(.+\)" "$1")]
-                                       ;; Skip all AggregateFunction (but keeping SimpleAggregateFunction) columns
-                                       ;; JDBC does not support that and it crashes the data browser
-                                       :when (not (re-matches #"^AggregateFunction\(.+$"
-                                                              (get field :database-type)))]
-                                      updated-field)]
-                (merge table-metadata {:fields (set filtered-fields)})))
+  [_ database table]
+  {:name   (:name table)
+   :schema (:schema table)
+   :fields (describe-table-fields-via-sql database table)})
 
 (defn- to-start-of-year
        [expr]
@@ -375,10 +388,6 @@
                (if (= (.getColumnLabel rsmeta i) "count")
                  (.getLong rs i)
                  (.getBigDecimal rs i))))
-
-; Map databend data types to base types
-(defmethod sql-jdbc.sync/database-type->base-type :databend [_ database-type]
-           (database-type->base-type database-type))
 
 ; Concatenate the elements of an array based on array elemets type (coverting array data type to string type to apply filter on array data)
 (defn is-string-array? [os]

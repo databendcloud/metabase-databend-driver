@@ -2,8 +2,9 @@
   :min-lein-version "2.5.0"
 
   :dependencies
-  [[com.databend/databend-jdbc "0.4.2"]
+  [[com.databend/databend-jdbc "0.4.6"]
    [clojure.java-time "0.3.2"]
+   [org.clojure/clojure "1.11.1"]
    ]
 
   :repositories [["snapshots" {:sign-releases false
@@ -21,8 +22,8 @@
 
 
 :profiles {:provided
-           {:dependencies [[com.databend/metabase-core "1.40"]]}
-           :uberjar {:aot :all
+           {:dependencies [[com.databend/metabase-core "0.61.3"]]}
+           :uberjar {:aot [metabase.driver.databend]
                      :auto-clean     true
                      :target-path    "target/%s"
                      :uberjar-name   "databend.metabase-driver.jar"
