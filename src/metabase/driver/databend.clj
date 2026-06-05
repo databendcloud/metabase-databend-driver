@@ -186,31 +186,96 @@
   ; DatabaseMetaData.getColumns() returns no rows against Databend, so query
   ; information_schema.columns directly for reliable field metadata.
   [database {:keys [name schema]}]
-  (let [db-name (or (not-empty schema) (get-in database [:details :dbname] "default"))]
-    (jdbc/with-db-connection [conn (->spec database)]
-      (let [rows (jdbc/query conn
-                   ["SELECT column_name, data_type, ordinal_position, is_nullable
-                     FROM information_schema.columns
-                     WHERE table_schema = ? AND table_name = ?
-                     ORDER BY ordinal_position"
-                    db-name name])]
-        (set (for [{:keys [column_name data_type ordinal_position is_nullable]} rows
-                   :let [safe-type     (or data_type "")
-                         db-type-upper (str/upper-case safe-type)]
-                   :when (and (seq safe-type)
-                              (not (re-matches #"(?i)^AggregateFunction\(.+$" safe-type)))]
-               {:name              column_name
-                :database-type     safe-type
-                :base-type         (or (sql-jdbc.sync/database-type->base-type :databend db-type-upper)
-                                       :type/*)
-                :database-position (if ordinal_position (dec (int ordinal_position)) 0)
-                :nullable?         (= "YES" is_nullable)}))))))
+  (let [db-name (or (not-empty schema) (get-in database [:details :dbname] "default"))
+        spec    (sql-jdbc.conn/connection-details->spec :databend (:details database))]
+    (try
+      (sql-jdbc.execute/do-with-connection-with-options
+        :databend spec nil
+        (fn [^Connection conn]
+          (let [sql  (str "SELECT column_name, data_type, ordinal_position, is_nullable"
+                          " FROM information_schema.columns"
+                          " WHERE table_schema = ? AND table_name = ?"
+                          " ORDER BY ordinal_position")
+                stmt (doto (.prepareStatement conn sql)
+                       (.setString 1 db-name)
+                       (.setString 2 name))
+                rset (.executeQuery stmt)]
+            (loop [fields #{}]
+              (if (.next rset)
+                (let [col-name  (.getString rset "column_name")
+                      data-type (.getString rset "data_type")
+                      ord-pos   (.getInt    rset "ordinal_position")
+                      is-null   (.getString rset "is_nullable")
+                      safe-type (or data-type "")
+                      upper-type (str/upper-case safe-type)]
+                  (if (or (str/blank? safe-type)
+                          (re-matches #"(?i)^AggregateFunction\(.+$" safe-type))
+                    (recur fields)
+                    (recur (conj fields
+                                 {:name              col-name
+                                  :database-type     safe-type
+                                  :base-type         (or (sql-jdbc.sync/database-type->base-type :databend upper-type)
+                                                         :type/*)
+                                  :database-position (dec ord-pos)
+                                  :nullable?         (= "YES" is-null)}))))
+                fields)))))
+      (catch Exception e
+        (log/error e "describe-table-fields-via-sql failed for" name "in schema" db-name)
+        #{}))))
 
 (defmethod driver/describe-table :databend
   [_ database table]
   {:name   (:name table)
    :schema (:schema table)
    :fields (describe-table-fields-via-sql database table)})
+
+(defmethod driver/describe-fields :databend
+  ; Metabase v0.49+ uses describe-fields instead of describe-table for sync-fields.
+  ; The sql-jdbc default calls getColumns() which returns nothing for Databend, so
+  ; we override here to query information_schema.columns directly.
+  [_driver database & {:keys [schema-names table-names]}]
+  ; Early exit if caller explicitly requested an empty set of schemas or tables.
+  (if (or (and schema-names (empty? schema-names))
+          (and table-names (empty? table-names)))
+    []
+    (let [; Metabase stores schema as "" when none is set; treat blank the same as nil
+          ; and fall back to the dbname from connection details (e.g. "gold").
+          db-name (or (first (filter #(not (str/blank? %)) schema-names))
+                      (get-in database [:details :dbname] "default"))
+          spec    (sql-jdbc.conn/connection-details->spec :databend (:details database))
+          tbl-clause (when (seq table-names)
+                       (str " AND table_name IN ("
+                            (str/join "," (repeat (count table-names) "?"))
+                            ")"))
+          sql    (str "SELECT table_schema, table_name, column_name, data_type,"
+                      " ordinal_position, is_nullable"
+                      " FROM information_schema.columns"
+                      " WHERE table_schema = ?"
+                      (or tbl-clause "")
+                      " ORDER BY table_name, ordinal_position")
+          params (into [sql db-name] (when (seq table-names) table-names))]
+      (try
+        (let [rows (jdbc/query spec params)]
+          ; NOTE: return table-schema as nil. Databend's JDBC getTables() returns TABLE_SCHEM=""
+          ; so Metabase stores schema=NULL in Postgres (JSON API serializes it as ""). Returning
+          ; nil here causes Metabase to query WHERE schema IS NULL, which matches correctly.
+          (vec (for [{:keys [table_name column_name data_type ordinal_position is_nullable]} rows
+                     :let [safe-type  (or data_type "")
+                           upper-type (str/upper-case safe-type)]
+                     :when (not (or (str/blank? safe-type)
+                                    (re-matches #"(?i)^AggregateFunction\(.+$" safe-type)))]
+                 {:table-schema         nil
+                  :table-name           table_name
+                  :name                 column_name
+                  :database-type        safe-type
+                  :base-type            (or (sql-jdbc.sync/database-type->base-type :databend upper-type)
+                                            :type/*)
+                  :database-position    (dec (int ordinal_position))
+                  :database-is-nullable (= "YES" is_nullable)
+                  :pk?                  false})))
+        (catch Exception e
+          (log/error e "describe-fields :databend failed for schema" db-name)
+          [])))))
 
 (defn- to-start-of-year
        [expr]
@@ -409,7 +474,8 @@
                               :connection-impersonation        false
                               :schemas                         true
                               :datetime-diff                   true
-                              :upload-with-auto-pk             false}]
+                              :upload-with-auto-pk             false
+                              :describe-fields                 true}]
 
        (defmethod driver/database-supports? [:databend feature] [_driver _feature _db] supported?))
 
