@@ -1,11 +1,7 @@
 (ns metabase.driver.databend-test
     "Tests for specific behavior of the Databend driver."
     #_{:clj-kondo/ignore [:unsorted-required-namespaces]}
-    (:require [cljc.java-time.format.date-time-formatter :as date-time-formatter]
-      [cljc.java-time.local-date :as local-date]
-      [cljc.java-time.offset-date-time :as offset-date-time]
-      [cljc.java-time.temporal.chrono-unit :as chrono-unit]
-      [clojure.test :refer :all]
+    (:require [clojure.test :refer :all]
       [metabase.driver :as driver]
       [metabase.driver.common :as driver.common]
       [metabase.driver.sql-jdbc.connection :as sql-jdbc.conn]
